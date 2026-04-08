@@ -88,8 +88,8 @@ def run_task(task_id: str) -> dict:
         reset_resp = requests.post(f"{API_BASE_URL}/reset", json={"task_id": task_id}, timeout=30)
         reset_resp.raise_for_status()
         obs = reset_resp.json()
-    except Exception as e:
-        print(json.dumps({"type": "STEP", "task_id": task_id, "step": 0, "email_id": "error", "action": {}, "error": str(e)}), flush=True)
+    except Exception:
+        print(f"[STEP] task={task_id} step=0 email_id=error reward=0.0", flush=True)
         return {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": []}
 
     task_scores = []
@@ -125,28 +125,16 @@ def run_task(task_id: str) -> dict:
 
         action_dict["email_id"] = email["id"]
 
-        # Emit [STEP] log — EXACT FORMAT REQUIRED
-        print(
-            json.dumps(
-                {
-                    "type": "STEP",
-                    "task_id": task_id,
-                    "step": step_num,
-                    "email_id": email["id"],
-                    "action": action_dict,
-                }
-            ),
-            flush=True,
-        )
-
         # Step environment
         try:
             step_resp = requests.post(f"{API_BASE_URL}/step", json=action_dict, timeout=30)
             step_resp.raise_for_status()
             result = step_resp.json()
-        except Exception as e:
-            print(json.dumps({"type": "STEP", "task_id": task_id, "step": step_num, "email_id": action_dict.get("email_id","unknown"), "action": action_dict, "error": str(e)}), flush=True)
+        except Exception:
+            print(f"[STEP] task={task_id} step={step_num} email_id=error reward=0.0", flush=True)
             break
+
+        print(f"[STEP] task={task_id} step={step_num} email_id={email['id']} reward={result['reward']['value']}", flush=True)
 
         reward = result["reward"]["value"]
         task_scores.append(reward)
@@ -198,8 +186,7 @@ Body:
 def main():
     all_results = []
 
-    # Emit [START] log
-    print(json.dumps({"type": "START", "model": MODEL_NAME, "tasks": TASKS}), flush=True)
+    print(f"[START] model={MODEL_NAME} tasks={','.join(TASKS)}", flush=True)
 
     for task_id in TASKS:
         try:
@@ -208,25 +195,13 @@ def main():
             result = {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": [], "error": str(e)}
         all_results.append(result)
 
-    total_score = sum(r["score"] for r in all_results) / len(all_results)
-
-    # Emit [END] log — EXACT FORMAT REQUIRED
-    print(
-        json.dumps(
-            {
-                "type": "END",
-                "total_score": total_score,
-                "task_scores": {r["task_id"]: r["score"] for r in all_results},
-                "results": all_results,
-            }
-        ),
-        flush=True,
-    )
+    for r in all_results:
+        print(f"[END] task={r['task_id']} score={r['score']:.4f} steps={r['steps']}", flush=True)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:
-        print(json.dumps({"type": "END", "total_score": 0.0, "task_scores": {}, "results": [], "error": str(e)}), flush=True)
+    except Exception:
+        print(f"[END] task=all score=0.0 steps=0", flush=True)
         sys.exit(0)
