@@ -24,4 +24,4 @@ dev = [
 ]
 
 [project.scripts]
-inboxenv-server = "app.main:app"
+inboxenv-server = "server.app:main"
