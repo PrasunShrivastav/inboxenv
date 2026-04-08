@@ -6,6 +6,7 @@ Uses OpenAI client to run an LLM agent against all 3 tasks.
 
 import json
 import os
+import sys
 from typing import Any, Dict
 
 import requests
@@ -16,10 +17,13 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7860")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-client = OpenAI(
-    api_key=HF_TOKEN,
-    base_url=API_BASE_URL
-)
+try:
+    client = OpenAI(
+        api_key=HF_TOKEN,
+        base_url=API_BASE_URL
+    )
+except Exception:
+    client = None
 
 TASKS = ["task_1", "task_2", "task_3"]
 USE_REMOTE_MODEL = bool(HF_TOKEN) and HF_TOKEN.lower() not in {"dummy", "test", "placeholder"}
@@ -80,9 +84,13 @@ def heuristic_action(email: Dict[str, Any], task_id: str) -> Dict[str, Any]:
 
 def run_task(task_id: str) -> dict:
     # 1. Reset environment
-    reset_resp = requests.post(f"{API_BASE_URL}/reset", json={"task_id": task_id})
-    reset_resp.raise_for_status()
-    obs = reset_resp.json()
+    try:
+        reset_resp = requests.post(f"{API_BASE_URL}/reset", json={"task_id": task_id}, timeout=30)
+        reset_resp.raise_for_status()
+        obs = reset_resp.json()
+    except Exception as e:
+        print(json.dumps({"type": "STEP", "task_id": task_id, "step": 0, "email_id": "error", "action": {}, "error": str(e)}), flush=True)
+        return {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": []}
 
     task_scores = []
     step_num = 0
@@ -132,9 +140,13 @@ def run_task(task_id: str) -> dict:
         )
 
         # Step environment
-        step_resp = requests.post(f"{API_BASE_URL}/step", json=action_dict)
-        step_resp.raise_for_status()
-        result = step_resp.json()
+        try:
+            step_resp = requests.post(f"{API_BASE_URL}/step", json=action_dict, timeout=30)
+            step_resp.raise_for_status()
+            result = step_resp.json()
+        except Exception as e:
+            print(json.dumps({"type": "STEP", "task_id": task_id, "step": step_num, "email_id": action_dict.get("email_id","unknown"), "action": action_dict, "error": str(e)}), flush=True)
+            break
 
         reward = result["reward"]["value"]
         task_scores.append(reward)
@@ -190,7 +202,10 @@ def main():
     print(json.dumps({"type": "START", "model": MODEL_NAME, "tasks": TASKS}), flush=True)
 
     for task_id in TASKS:
-        result = run_task(task_id)
+        try:
+            result = run_task(task_id)
+        except Exception as e:
+            result = {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": [], "error": str(e)}
         all_results.append(result)
 
     total_score = sum(r["score"] for r in all_results) / len(all_results)
@@ -210,4 +225,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(json.dumps({"type": "END", "total_score": 0.0, "task_scores": {}, "results": [], "error": str(e)}), flush=True)
+        sys.exit(0)
