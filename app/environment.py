@@ -120,8 +120,8 @@ class InboxEnvironment:
         if task_id in {"task_2", "task_3"} and ground_truth["should_escalate"] and not action.should_escalate:
             missed_escalation_penalty = 0.1
 
-        final_reward = base_score + reasoning_bonus - spam_penalty - missing_draft_penalty - missed_escalation_penalty
-        final_reward = max(0.0, min(1.0, round(final_reward, 4)))
+        computed_reward = base_score + reasoning_bonus - spam_penalty - missing_draft_penalty - missed_escalation_penalty
+        reward_value = max(0.05, min(0.95, round(computed_reward, 4)))
 
         breakdown = {
             "base_score": round(base_score, 4),
@@ -165,7 +165,7 @@ class InboxEnvironment:
         if missed_escalation_penalty:
             feedback_bits.append("Missed escalation penalty applied.")
 
-        return Reward(value=final_reward, breakdown=breakdown, feedback=" ".join(feedback_bits))
+        return Reward(value=reward_value, breakdown=breakdown, feedback=" ".join(feedback_bits))
 
 
 class InboxEnvironmentStore:

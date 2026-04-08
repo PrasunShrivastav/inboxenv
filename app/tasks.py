@@ -13,6 +13,11 @@ PRIORITY_ORDER = {
 }
 
 
+def clamp_score(score: float) -> float:
+    """Ensure score is strictly between 0 and 1 as required by validator."""
+    return max(0.05, min(0.95, float(score)))
+
+
 @dataclass(frozen=True)
 class TaskDefinition:
     id: str
@@ -28,31 +33,31 @@ class TaskDefinition:
         expected = ground_truth["priority"]
         actual = action.priority
         if actual == expected:
-            return 1.0
+            return clamp_score(1.0)
         if actual == Priority.SPAM or expected == Priority.SPAM:
-            return 0.0
+            return clamp_score(0.0)
         if abs(PRIORITY_ORDER[actual] - PRIORITY_ORDER[expected]) == 1:
-            return 0.5
-        return 0.0
+            return clamp_score(0.5)
+        return clamp_score(0.0)
 
     def grade_category(self, action: Action, ground_truth: Dict[str, object]) -> float:
-        return 1.0 if action.category == ground_truth["category"] else 0.0
+        return clamp_score(1.0 if action.category == ground_truth["category"] else 0.0)
 
     def grade_escalation(self, action: Action, ground_truth: Dict[str, object]) -> float:
-        return 1.0 if action.should_escalate == ground_truth["should_escalate"] else 0.0
+        return clamp_score(1.0 if action.should_escalate == ground_truth["should_escalate"] else 0.0)
 
     def response_required(self, ground_truth: Dict[str, object]) -> bool:
         return ground_truth["priority"] in {Priority.URGENT, Priority.HIGH}
 
     def grade_response(self, action: Action, ground_truth: Dict[str, object]) -> float:
         if not self.response_required(ground_truth):
-            return 1.0
+            return clamp_score(1.0)
         draft = (action.draft_response or "").lower()
         key_phrases = [phrase.lower() for phrase in ground_truth.get("key_phrases", [])]
         if not draft or not key_phrases:
-            return 0.0
+            return clamp_score(0.0)
         matches = sum(1 for phrase in key_phrases if phrase in draft)
-        return min(1.0, matches / len(key_phrases))
+        return clamp_score(min(1.0, matches / len(key_phrases)))
 
     def grade_action(self, action: Action, ground_truth: Dict[str, object]) -> float:
         raise NotImplementedError
@@ -62,7 +67,7 @@ class PriorityClassificationTask(TaskDefinition):
     def grade_action(self, action: Action, ground_truth: Dict[str, object]) -> float:
         priority_score = self.grade_priority(action, ground_truth)
         category_score = self.grade_category(action, ground_truth)
-        return (priority_score * 0.6) + (category_score * 0.4)
+        return clamp_score((priority_score * 0.6) + (category_score * 0.4))
 
 
 class TriageEscalationTask(TaskDefinition):
@@ -70,7 +75,7 @@ class TriageEscalationTask(TaskDefinition):
         priority_score = self.grade_priority(action, ground_truth)
         category_score = self.grade_category(action, ground_truth)
         escalation_score = self.grade_escalation(action, ground_truth)
-        return (priority_score * 0.4) + (category_score * 0.3) + (escalation_score * 0.3)
+        return clamp_score((priority_score * 0.4) + (category_score * 0.3) + (escalation_score * 0.3))
 
 
 class FullTriageTask(TaskDefinition):
@@ -81,7 +86,7 @@ class FullTriageTask(TaskDefinition):
         response_score = self.grade_response(action, ground_truth)
 
         if self.response_required(ground_truth):
-            return (
+            return clamp_score(
                 (priority_score * 0.3)
                 + (category_score * 0.2)
                 + (escalation_score * 0.2)
@@ -89,7 +94,7 @@ class FullTriageTask(TaskDefinition):
             )
 
         non_response_total = (priority_score * 0.3) + (category_score * 0.2) + (escalation_score * 0.2)
-        return non_response_total / 0.7
+        return clamp_score(non_response_total / 0.7)
 
 
 TASKS: Dict[str, TaskDefinition] = {

@@ -39,7 +39,7 @@ def run_task(task_id: str) -> dict:
         obs = reset_resp.json()
     except Exception:
         print(f"[STEP] task={task_id} step=0 email_id=error reward=0.0", flush=True)
-        return {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": []}
+        return {"task_id": task_id, "score": 0.05, "steps": 0, "rewards": []}
 
     task_scores = []
     step_num = 0
@@ -89,7 +89,8 @@ def run_task(task_id: str) -> dict:
 
         step_num += 1
 
-    avg_score = sum(task_scores) / len(task_scores) if task_scores else 0.0
+    avg_score = sum(task_scores) / len(task_scores) if task_scores else 0.05
+    avg_score = max(0.05, min(0.95, avg_score))
     return {"task_id": task_id, "score": avg_score, "steps": step_num, "rewards": task_scores}
 
 
@@ -136,7 +137,7 @@ def main():
         try:
             result = run_task(task_id)
         except Exception as e:
-            result = {"task_id": task_id, "score": 0.0, "steps": 0, "rewards": [], "error": str(e)}
+            result = {"task_id": task_id, "score": 0.05, "steps": 0, "rewards": [], "error": str(e)}
         all_results.append(result)
 
     for r in all_results:
@@ -147,5 +148,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        print(f"[END] task=all score=0.0 steps=0", flush=True)
+        print(f"[END] task=all score=0.0500 steps=0", flush=True)
         sys.exit(0)
