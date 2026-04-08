@@ -16,17 +16,19 @@ from openai import OpenAI
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7860")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("API_KEY", HF_TOKEN or "dummy")
 
 try:
-    client = OpenAI(
-        api_key=HF_TOKEN,
-        base_url=API_BASE_URL
+    llm_client = OpenAI(
+        api_key=API_KEY,
+        base_url=os.getenv("API_BASE_URL", "https://api.openai.com/v1")
     )
 except Exception:
-    client = None
+    llm_client = None
+
+ENV_BASE_URL = "http://localhost:7860"
 
 TASKS = ["task_1", "task_2", "task_3"]
-USE_REMOTE_MODEL = bool(HF_TOKEN) and HF_TOKEN.lower() not in {"dummy", "test", "placeholder"}
 
 
 def heuristic_action(email: Dict[str, Any], task_id: str) -> Dict[str, Any]:
@@ -85,7 +87,7 @@ def heuristic_action(email: Dict[str, Any], task_id: str) -> Dict[str, Any]:
 def run_task(task_id: str) -> dict:
     # 1. Reset environment
     try:
-        reset_resp = requests.post(f"{API_BASE_URL}/reset", json={"task_id": task_id}, timeout=30)
+        reset_resp = requests.post(f"{ENV_BASE_URL}/reset", json={"task_id": task_id}, timeout=30)
         reset_resp.raise_for_status()
         obs = reset_resp.json()
     except Exception:
@@ -105,9 +107,7 @@ def run_task(task_id: str) -> dict:
 
         # Call LLM via OpenAI client
         try:
-            if not USE_REMOTE_MODEL:
-                raise RuntimeError("Using local heuristic fallback.")
-            response = client.chat.completions.create(
+            response = llm_client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
                     {
@@ -127,7 +127,7 @@ def run_task(task_id: str) -> dict:
 
         # Step environment
         try:
-            step_resp = requests.post(f"{API_BASE_URL}/step", json=action_dict, timeout=30)
+            step_resp = requests.post(f"{ENV_BASE_URL}/step", json=action_dict, timeout=30)
             step_resp.raise_for_status()
             result = step_resp.json()
         except Exception:
