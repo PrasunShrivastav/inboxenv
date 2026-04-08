@@ -14,7 +14,7 @@ app = FastAPI(title="InboxEnv", version="1.0.0")
 
 
 class ResetRequest(BaseModel):
-    task_id: str = "task_1"
+    task_id: Optional[str] = "task_1"
 
 
 def _session_id(header_value: Optional[str]) -> str:
@@ -150,10 +150,11 @@ def index(x_session_id: Optional[str] = Header(default=None)) -> HTMLResponse:
 
 
 @app.post("/reset")
-def reset(request: ResetRequest, x_session_id: Optional[str] = Header(default=None)):
+def reset(request: Optional[ResetRequest] = None, x_session_id: Optional[str] = Header(default=None)):
     try:
         env = ENV_STORE.get(_session_id(x_session_id))
-        return env.reset(request.task_id)
+        task_id = request.task_id if request else "task_1"
+        return env.reset(task_id=task_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
