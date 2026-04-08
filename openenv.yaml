@@ -4,3 +4,81 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 7860
+description: Email triage and prioritization environment for realistic inbox workflows.
+tasks:
+  - id: task_1
+    name: Priority Classification
+    difficulty: easy
+    description: Classify 10 emails by priority and category.
+    max_steps: 10
+    graders:
+      - name: priority
+        description: Grades whether the submitted priority matches the ground truth priority.
+        weight: 0.6
+      - name: category
+        description: Grades whether the submitted category matches the ground truth category.
+        weight: 0.4
+    reward_adjustments:
+      - name: reasoning_bonus
+        value: 0.05
+        condition: Applied when the action includes non-empty reasoning.
+      - name: spam_penalty
+        value: -0.1
+        condition: Applied when a non-spam email is incorrectly marked as spam.
+  - id: task_2
+    name: Triage and Escalation
+    difficulty: medium
+    description: Triage 15 emails and decide whether each one should be escalated.
+    max_steps: 15
+    graders:
+      - name: priority
+        description: Grades whether the submitted priority matches the ground truth priority.
+        weight: 0.4
+      - name: category
+        description: Grades whether the submitted category matches the ground truth category.
+        weight: 0.3
+      - name: escalation
+        description: Grades whether the escalation decision matches the ground truth escalation requirement.
+        weight: 0.3
+    reward_adjustments:
+      - name: reasoning_bonus
+        value: 0.05
+        condition: Applied when the action includes non-empty reasoning.
+      - name: spam_penalty
+        value: -0.1
+        condition: Applied when a non-spam email is incorrectly marked as spam.
+      - name: missed_escalation_penalty
+        value: -0.1
+        condition: Applied when escalation was required but the action does not escalate.
+  - id: task_3
+    name: Full Triage with Response Drafting
+    difficulty: hard
+    description: Fully triage 20 emails and draft responses for urgent or high-priority cases.
+    max_steps: 20
+    graders:
+      - name: priority
+        description: Grades whether the submitted priority matches the ground truth priority.
+        weight: 0.3
+      - name: category
+        description: Grades whether the submitted category matches the ground truth category.
+        weight: 0.2
+      - name: escalation
+        description: Grades whether the escalation decision matches the ground truth escalation requirement.
+        weight: 0.2
+      - name: response_quality
+        description: Grades draft quality by keyword overlap against required response key phrases.
+        weight: 0.3
+        condition: Applied only when the current email requires a response.
+    reward_adjustments:
+      - name: reasoning_bonus
+        value: 0.05
+        condition: Applied when the action includes non-empty reasoning.
+      - name: spam_penalty
+        value: -0.1
+        condition: Applied when a non-spam email is incorrectly marked as spam.
+      - name: missed_escalation_penalty
+        value: -0.1
+        condition: Applied when escalation was required but the action does not escalate.
+      - name: missing_draft_penalty
+        value: -0.1
+        condition: Applied when a response was required but no draft response was provided.
