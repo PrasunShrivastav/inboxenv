@@ -1,34 +1,8 @@
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
-
-class Priority(str, Enum):
-    URGENT = "urgent"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    SPAM = "spam"
-
-
-class Category(str, Enum):
-    CUSTOMER_SUPPORT = "customer_support"
-    BILLING = "billing"
-    TECHNICAL = "technical"
-    SALES = "sales"
-    INTERNAL = "internal"
-    SPAM = "spam"
-
-
-class Email(BaseModel):
-    id: str
-    subject: str
-    sender: str
-    body: str
-    timestamp: str
-    has_attachment: bool = False
-    thread_id: Optional[str] = None
+from models import Category, Email, Priority
 
 
 class Observation(BaseModel):

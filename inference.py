@@ -46,7 +46,7 @@ def run_task(task_id: str) -> dict:
     done = False
 
     while not done:
-        email = obs["observation"]["current_email"]
+        email = obs["observation"]
         task_desc = obs["observation"]["task_description"]
 
         # Build prompt for LLM
@@ -67,20 +67,22 @@ def run_task(task_id: str) -> dict:
         raw = response.choices[0].message.content
         action_dict = json.loads(raw)
 
-        action_dict["email_id"] = email["id"]
-
         # Step environment
         try:
-            step_resp = requests.post(f"{ENV_BASE_URL}/step", json=action_dict, timeout=30)
+            step_resp = requests.post(
+                f"{ENV_BASE_URL}/step",
+                json={"action": action_dict},
+                timeout=30,
+            )
             step_resp.raise_for_status()
             result = step_resp.json()
         except Exception:
             print(f"[STEP] task={task_id} step={step_num} email_id=error reward=0.0", flush=True)
             break
 
-        print(f"[STEP] task={task_id} step={step_num} email_id={email['id']} reward={result['reward']['value']}", flush=True)
+        print(f"[STEP] task={task_id} step={step_num} email_id={email['email_id']} reward={result['reward']}", flush=True)
 
-        reward = result["reward"]["value"]
+        reward = result["reward"]
         task_scores.append(reward)
         done = result["done"]
 
