@@ -1,0 +1,60 @@
+name: InboxEnv
+version: "1.0.0"
+description: "Email triage and prioritization environment for training AI agents on real-world inbox management"
+domain: enterprise_productivity
+tags:
+  - email
+  - triage
+  - nlp
+  - classification
+  - response-generation
+
+observation_space:
+  type: object
+  fields:
+    current_email: object
+    inbox_remaining: integer
+    emails_processed: integer
+    current_score: float
+    task_id: string
+    task_description: string
+    step_number: integer
+
+action_space:
+  type: object
+  fields:
+    email_id: string
+    priority: enum [urgent, high, medium, low, spam]
+    category: enum [customer_support, billing, technical, sales, internal, spam]
+    should_escalate: boolean
+    draft_response: string (optional)
+    reasoning: string (optional)
+
+tasks:
+  - id: task_1
+    name: Priority Classification
+    difficulty: easy
+    description: "Classify 10 emails by priority and category"
+    max_steps: 10
+  - id: task_2
+    name: Triage and Escalation
+    difficulty: medium
+    description: "Triage 15 emails including escalation decisions"
+    max_steps: 15
+  - id: task_3
+    name: Full Triage with Response Drafting
+    difficulty: hard
+    description: "Full triage of 20 emails with response drafting for urgent cases"
+    max_steps: 20
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  health: GET /health
+
+reward:
+  range: [0.0, 1.0]
+  type: dense
+  notes: "Per-step rewards with partial credit for near-correct answers"
