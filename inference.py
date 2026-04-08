@@ -31,59 +31,6 @@ ENV_BASE_URL = "http://localhost:7860"
 TASKS = ["task_1", "task_2", "task_3"]
 
 
-def heuristic_action(email: Dict[str, Any], task_id: str) -> Dict[str, Any]:
-    subject = email["subject"].lower()
-    body = email["body"].lower()
-    text = f"{subject}\n{body}"
-
-    priority = "medium"
-    category = "customer_support"
-    should_escalate = False
-
-    if any(token in text for token in ["phishing", "lottery", "crypto investor leads", "verify your mailbox", "backlink network"]):
-        priority = "spam"
-        category = "spam"
-    elif any(token in text for token in ["outage", "503", "security", "breach", "maintenance mode", "cannot access", "executive team"]):
-        priority = "urgent"
-        category = "technical" if any(token in text for token in ["503", "security", "breach", "maintenance mode", "api", "patch"]) else "customer_support"
-        should_escalate = True
-    elif any(token in text for token in ["billing", "invoice", "refund", "chargeback", "payment", "renewal", "tax registration"]):
-        category = "billing"
-        priority = "high" if any(token in text for token in ["duplicate", "chargeback", "payment failures", "end of business"]) else "medium"
-        should_escalate = "payment failures" in text or "duplicate annual subscription" in text
-    elif any(token in text for token in ["pricing", "pilot", "procurement", "enterprise", "trial", "partnership", "rollout", "prospect"]):
-        category = "sales"
-        priority = "high" if any(token in text for token in ["900-seat", "pilot", "final negotiations", "legal review closes tomorrow"]) else "medium"
-        should_escalate = any(token in text for token in ["900-seat", "final negotiations", "legal review closes tomorrow", "steering committee meets on friday"])
-    elif any(token in text for token in ["login", "csv", "saml", "mobile update", "notifications", "reactivate", "audit logs"]):
-        category = "technical"
-        priority = "high" if any(token in text for token in ["csv", "mobile update", "login loops", "stopped appearing"]) else "medium"
-    elif any(token in text for token in ["internal", "hr", "agenda", "travel", "launch emails", "support operations sync"]):
-        category = "internal"
-        priority = "low"
-    elif any(token in text for token in ["newsletter", "release notes", "out of the office", "webinar", "check-in"]):
-        category = "customer_support"
-        priority = "low"
-
-    if task_id == "task_1":
-        should_escalate = False
-
-    draft_response = None
-    if task_id == "task_3" and priority in {"urgent", "high"}:
-        draft_response = (
-            "Thanks for the detailed note. We are treating this as a high-priority issue, coordinating the right owner, "
-            "and will share an update with next steps and timing shortly."
-        )
-
-    return {
-        "priority": priority,
-        "category": category,
-        "should_escalate": should_escalate,
-        "draft_response": draft_response,
-        "reasoning": "Heuristic classification based on urgency, sender context, and explicit risk signals.",
-    }
-
-
 def run_task(task_id: str) -> dict:
     # 1. Reset environment
     try:
@@ -105,23 +52,20 @@ def run_task(task_id: str) -> dict:
         # Build prompt for LLM
         prompt = build_prompt(email, task_desc, task_id)
 
-        # Call LLM via OpenAI client
-        try:
-            response = llm_client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert email triage assistant. Always respond with valid JSON.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                response_format={"type": "json_object"},
-            )
-            action_dict = json.loads(response.choices[0].message.content)
-        except Exception:
-            action_dict = heuristic_action(email, task_id)
+        response = llm_client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert email triage assistant. Always respond with valid JSON.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+            response_format={"type": "json_object"},
+        )
+        raw = response.choices[0].message.content
+        action_dict = json.loads(raw)
 
         action_dict["email_id"] = email["id"]
 
